@@ -32,10 +32,16 @@ var HelloWorld = NativeModules.HelloWorld;
 
 type Props = {};
 const App: () => React$Node = () => {
+
   // eslint-disable-next-line no-undef
   function doPrintInvoice() {
     // Update the document title using the browser API
     HelloWorld.printInvoice(
+        JSON.stringify({
+          id: '5e79d08c3daf94e4d4',
+          name: "Wakaf Al-Quran dan Pembinaan",
+          value: [{"detail_id":"5e79d08c5cc56d0ca3","program_code":"WAP","program_name":"Wakaf Al-Quran dan Pembinaan","product_name":"Berinvestasi Pahala di Lereng Gunung Slamet dan Pesisir Tegal","product_code":"0219","product_id":"5c965accd091264051","total":"100.00","quantity":"1.00","unit":"5c94b5b25822647b5b"},{"detail_id":"5e79d08c66020acef9","program_code":"WAFP","program_name":"Water Action For People","product_name":"Krisis Air Bersih; Jangan Biarkan Warga Sukorame Bergantung Pada Air Sumur Rembesan Sungai","product_code":"0246","product_id":"5c965f84c3cbc64d0c","total":"100.00","quantity":"1.00","unit":"5c94b5b25822647b5b"}]
+        }),
       err => {
         console.log(err);
       },
@@ -57,6 +63,36 @@ const App: () => React$Node = () => {
     );
   }
 
+  function doPrintJson() {
+    // Update the document title using the browser API
+    let id, values
+    fetch("http://202.83.120.140/api/sales-order/detail/5e79d08c3daf94e4d4")
+        .then((response) => response.json())
+        .then((responseJson) => {
+          ()=> {
+            id : responseJson.header_id
+            values:  responseJson.detail
+          }
+          console.log('res: '+responseJson.header_id)
+          console.log('res: '+JSON.stringify(responseJson))
+        })
+    console.log('id: '+id)
+    console.log('values: '+values)
+
+    HelloWorld.printJson(JSON.stringify({
+          id: '5e79d08c3daf94e4d4',
+          name: "Wakaf Al-Quran dan Pembinaan",
+          value: [{"detail_id":"5e79d08c5cc56d0ca3","program_code":"WAP","program_name":"Wakaf Al-Quran dan Pembinaan","product_name":"Berinvestasi Pahala di Lereng Gunung Slamet dan Pesisir Tegal","product_code":"0219","product_id":"5c965accd091264051","total":"100.00","quantity":"1.00","unit":"5c94b5b25822647b5b"},{"detail_id":"5e79d08c66020acef9","program_code":"WAFP","program_name":"Water Action For People","product_name":"Krisis Air Bersih; Jangan Biarkan Warga Sukorame Bergantung Pada Air Sumur Rembesan Sungai","product_code":"0246","product_id":"5c965f84c3cbc64d0c","total":"100.00","quantity":"1.00","unit":"5c94b5b25822647b5b"}]
+        }),
+        err => {
+          console.log(err);
+        },
+        msg => {
+          console.log(msg);
+        },
+    );
+  }
+
   return (
     <>
       <StatusBar barStyle="dark-content" />
@@ -73,15 +109,22 @@ const App: () => React$Node = () => {
           <View style={styles.body}>
             <View style={styles.container}>
               <TouchableOpacity onPress={doPrintInvoice}>
-                <Text>Invoke native Java code</Text>
+                <Text>Invoke invoice print</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.container}>
               <TouchableOpacity onPress={doPrintCash}>
-                <Text>Invoke native Java code</Text>
+                <Text>Invokeprint cash</Text>
               </TouchableOpacity>
             </View>
+
+            <View style={styles.container}>
+              <TouchableOpacity onPress={doPrintJson}>
+                <Text>Invoke JSON print</Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.sectionContainer}>
               <Text style={styles.sectionTitle}>Step One</Text>
               <Text style={styles.sectionDescription}>

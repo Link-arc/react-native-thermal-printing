@@ -6,6 +6,7 @@ import android.content.res.Resources;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 
 import android.os.RemoteException;
@@ -13,24 +14,31 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 
 import com.facebook.react.bridge.Callback;
 import com.facebook.react.bridge.ReactApplicationContext;
 import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.uimanager.IllegalViewOperationException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vfi.smartpos.deviceservice.aidl.PrinterConfig;
 import com.vfi.smartpos.deviceservice.aidl.PrinterListener;
 
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 
 
 public class HelloWorldModule extends ReactContextBaseJavaModule {
     private ImageView mImageView;
     private Bitmap bmp;
+    private Transaction transaction;
+    static ObjectMapper mapper = new ObjectMapper();
 
 
     public HelloWorldModule(@NonNull ReactApplicationContext reactContext) {
@@ -49,15 +57,31 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
 
     }
 
-
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @ReactMethod
-    public void printInvoice(Callback errorCallback, Callback successCallback) {
+    public void printJson(String taction, Callback errorCallback, Callback successCallback) throws IOException {
         Toast.makeText(getReactApplicationContext(), "Start", Toast.LENGTH_LONG).show();
         try {
             if (MainApplication.printer == null) {
                 Toast.makeText(getReactApplicationContext(), "Printer connection error", Toast.LENGTH_LONG).show();
             } else {
-                doPrintInvoice(getReactApplicationContext());
+                doPrintJson(taction);
+            }
+            doPrintJson(taction);
+            successCallback.invoke("Callback : Greetings from Java");
+        } catch (IllegalViewOperationException | FileNotFoundException e) {
+            errorCallback.invoke(e.getMessage());
+        }
+    }
+
+    @ReactMethod
+    public void printInvoice(String taction, Callback errorCallback, Callback successCallback) throws IOException {
+        Toast.makeText(getReactApplicationContext(), "Start", Toast.LENGTH_LONG).show();
+        try {
+            if (MainApplication.printer == null) {
+                Toast.makeText(getReactApplicationContext(), "Printer connection error", Toast.LENGTH_LONG).show();
+            } else {
+                doPrintInvoice(taction, getReactApplicationContext());
             }
             successCallback.invoke("Callback : Greetings from Java");
         } catch (IllegalViewOperationException | FileNotFoundException e) {
@@ -80,49 +104,83 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
         }
     }
 
-
-    public void doPrintInvoice(Context context) throws FileNotFoundException {
-
-        String imageUrl = "android/app/src/main/res/drawable/bwa.png";
-
-        Resources res = context.getResources();
-
-        Uri imageUri = Uri.parse(ContentResolver.SCHEME_ANDROID_RESOURCE +
-                "://" + context.getResources().getResourcePackageName(R.drawable.img)
-                + '/' + context.getResources().getResourceTypeName(R.drawable.img) + '/' + context.getResources().getResourceEntryName(R.drawable.img) );
-//        Uri otherPath = Uri.parse(imageUrl);
-//        context.getResources().getDrawable(R.drawable.bwa);
-
-        InputStream fis = context.getContentResolver().openInputStream(imageUri);
-
-        Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(),
-                R.drawable.bwa);
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-//        bitmap.compress(Bitmap.CompressFormat.PNG,100, baos);
-        byte[] buf = new byte[1024];
-        try {
-            for (int readNum; (readNum = fis.read(buf)) != -1;) {
-                //Writes to this byte array output stream
-                baos.write(buf, 0, readNum);
-                System.out.println("read " + readNum + " bytes,");
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public void doPrintJson(String taction) throws IOException {
+        transaction = mapper.readValue(taction, Transaction.class);
+        transaction.setProduct("WAP Sintang");
+        StringBuilder product = new StringBuilder();
+        if (transaction.getProduct().length() > 18) {
+            product.append(transaction.getProduct().substring(0,18));
+        } else {
+            product.append(transaction.getProduct());
+            while (product.length() < 18) {
+                product.append(" ");
+                System.out.println("bug");
             }
-        } catch (IOException ex) {
-//            Logger.getLogger(ConvertImage.class.getName()).log(Level.SEVERE, null, ex);
+            System.out.println("product : "+product.toString()+"1");
         }
-        byte [] b=baos.toByteArray();
+
+        List<Value> value = transaction.getValue();
+
+        value.iterator().forEachRemaining(v -> {
+            System.out.println("program name: "+v.getProgram_name());
+        });
+        System.out.println("transaction : "+transaction.toString());
+    }
+
+    public String product(String product) {
+        StringBuilder prod = new StringBuilder();
+        if (product.length() > 18) {
+            prod.append(product.substring(0,18));
+        } else {
+            int remain = 18 - product.length();
+            prod.append(product);
+            for (int i = 0; i<remain; i++) {
+                prod.append(" ");
+            }
+        }
+        return prod.toString();
+    }
+
+    public byte[] getImage(Context context) {
+        byte[] buffer = null;
+        try {
+            InputStream is = context.getAssets().open("bwaicon.png");
+            // get the size
+            int size = is.available();
+            // crete the array of byte
+            buffer = new byte[size];
+            is.read(buffer);
+            // close the stream
+            is.close();
+        } catch (IOException e) {
+            // Should never happen!
+            throw new RuntimeException(e);
+        }
+
+        return buffer;
+    }
+
+    public void doPrintInvoice(String taction, Context context) throws IOException {
+        transaction = mapper.readValue(taction, Transaction.class);
+        transaction.setId("5c9658b461c53c224c");
+        transaction.setName("Wakaf Al-Quran dan Pembinaan");
+        transaction.setProduct("WAP Sintang");
+
 
         try {
             // bundle format for addText
             Bundle format = new Bundle();
+            // bundle fmtImage for addImage
+            Bundle  fmtImage = new Bundle();
+            fmtImage.putInt(PrinterConfig.addText.Alignment.BundleName, PrinterConfig.addText.Alignment.CENTER);
+            fmtImage.putInt("offset", (384 - 129) / 2);
+            fmtImage.putInt("width", 129);  // bigger then actual, will print the actual
+            fmtImage.putInt("height", 60);
 
-            // bundle formate for AddTextInLine
-            Bundle fmtAddTextInLine = new Bundle();
-
-            MainApplication.printer.addImage(format, b);
-
+            MainApplication.printer.addImage(fmtImage, getImage(context));
+            MainApplication.printer.feedLine(2);
             format.putInt(PrinterConfig.addText.FontSize.BundleName, PrinterConfig.addText.FontSize.NORMAL_24_24);
-            // format.putString(PrinterConfig.addTextInLine.GlobalFont.BundleName, PrinterFonts.path + PrinterFonts.FONT_ABEL);
-
             MainApplication.printer.addText(format, String.format("%s %s: %s", "Tgl", "  ", "24/01/2020"));
             MainApplication.printer.addText(format, String.format("%s %s: %s", "No", "   ", "010.S0200100032"));
             MainApplication.printer.addText(format, String.format("%s %s: %s", "Cab", "  ", "DKI Jakarta"));
@@ -131,10 +189,18 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
             MainApplication.printer.addText(format, "Prog Peruntukan       Qty  harga");
             MainApplication.printer.addText(format, "Proj");
             MainApplication.printer.addText(format,"--------------------------------");
-            MainApplication.printer.addText(format, String.format("%s %s", "WAP ","Wakaf Al-Quran dan Pembinaa"));
-            MainApplication.printer.addText(format, String.format("%s %s %s %s", "0360","WAP Sintang       ","1","100000" ));
-            MainApplication.printer.addText(format, String.format("%s %s", "AB  ","Wakaf Air Bersih"));
-            MainApplication.printer.addText(format, String.format("%s %s %s %s", "0410","Jepitu            ","1","100000" ));
+            List<Value> value = transaction.getValue();
+
+            for(Value v : transaction.getValue()) {
+                MainApplication.printer.addText(format, String.format("%s %s", v.getProgram_code().length() < 4 ? v.getProgram_code()+" ": v.getProgram_code(), v.getProgram_name().length() > 27 ? v.getProgram_name().substring (0,27) : v.getProgram_name() ));
+                String product = product(v.getProduct_name());
+                MainApplication.printer.addText(format, String.format("%s %s %s %s", v.getProduct_code(), product, v.getQuantity(), v.getTotal() ));
+            }
+//            MainApplication.printer.addText(format, String.format("%s %s", "WAP ",transaction.getName().length() > 27 ? transaction.getName().substring (0,27) : transaction.getName() ));
+//            String product = product(transaction.getProduct());
+//            MainApplication.printer.addText(format, String.format("%s %s %s %s", "0360", product,"1","100000" ));
+//            MainApplication.printer.addText(format, String.format("%s %s", "AB  ","Wakaf Air Bersih"));
+//            MainApplication.printer.addText(format, String.format("%s %s %s %s", "0410","Jepitu            ","1","100000" ));
             MainApplication.printer.addText(format, "================================");
             format.putBoolean(PrinterConfig.addText.StyleBold.BundleName, PrinterConfig.addText.StyleBold.BOLD);
             MainApplication.printer.addText(format, String.format("%s %s %s", "TOTAL","(CASH/GPN)         ","200000" ));
@@ -149,8 +215,8 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
             MainApplication.printer.addText(format, String.format("%s", "Icha" ));
             MainApplication.printer.addText(format, String.format("%s", "18120258" ));
             MainApplication.printer.addText(format, "-----------Wakif Copy-----------");
-            MainApplication.printer.feedLine(2);
-            MainApplication.printer.feedLine(3);
+            MainApplication.printer.feedLine(4);
+//            MainApplication.printer.feedLine(3);
 
             //printer.addText(format, String.format("%-15s: %s", "yutuyqtweqw", "weqweqwe"));
 
