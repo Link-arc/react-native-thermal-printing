@@ -1,6 +1,6 @@
 package com.loop;
 
-public class Value {
+public class Detail {
     private String detail_id;
     private String program_code;
     private String program_name;
@@ -11,9 +11,9 @@ public class Value {
     private String quantity;
     private String unit;
 
-    public Value() {}
+    public Detail() {}
 
-    public Value(String detail_id, String program_code) {
+    public Detail(String detail_id, String program_code) {
         this.detail_id = detail_id;
         this.program_code = program_code;
     }

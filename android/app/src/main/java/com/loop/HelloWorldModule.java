@@ -26,11 +26,12 @@ import com.vfi.smartpos.deviceservice.aidl.PrinterConfig;
 import com.vfi.smartpos.deviceservice.aidl.PrinterListener;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 
@@ -69,7 +70,7 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
             }
             doPrintJson(taction);
             successCallback.invoke("Callback : Greetings from Java");
-        } catch (IllegalViewOperationException | FileNotFoundException e) {
+        } catch (IllegalViewOperationException | FileNotFoundException | ParseException e) {
             errorCallback.invoke(e.getMessage());
         }
     }
@@ -105,25 +106,31 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
-    public void doPrintJson(String taction) throws IOException {
+    public void doPrintJson(String taction) throws IOException, ParseException {
         transaction = mapper.readValue(taction, Transaction.class);
-        transaction.setProduct("WAP Sintang");
-        StringBuilder product = new StringBuilder();
-        if (transaction.getProduct().length() > 18) {
-            product.append(transaction.getProduct().substring(0,18));
-        } else {
-            product.append(transaction.getProduct());
-            while (product.length() < 18) {
-                product.append(" ");
-                System.out.println("bug");
-            }
-            System.out.println("product : "+product.toString()+"1");
-        }
+//        if (transaction.getProduct().length() > 18) {
+//            product.append(transaction.getProduct().substring(0,18));
+//        } else {
+//            product.append(transaction.getProduct());
+//            while (product.length() < 18) {
+//                product.append(" ");
+//                System.out.println("bug");
+//            }
+//            System.out.println("product : "+product.toString()+"1");
+//        }
 
-        List<Value> value = transaction.getValue();
+        List<Detail> value = transaction.getDetail();
+        SimpleDateFormat in = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+        SimpleDateFormat out = new SimpleDateFormat("dd/MM/yyyy");
+
+        Date date = in.parse(transaction.getDate());
+        String result = out.format(date);
+        System.out.println("Date : "+result);
 
         value.iterator().forEachRemaining(v -> {
             System.out.println("program name: "+v.getProgram_name());
+            int number = (int) Double.parseDouble(v.getQuantity());
+            System.out.println("QTY : "+number);
         });
         System.out.println("transaction : "+transaction.toString());
     }
@@ -163,10 +170,6 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
 
     public void doPrintInvoice(String taction, Context context) throws IOException {
         transaction = mapper.readValue(taction, Transaction.class);
-        transaction.setId("5c9658b461c53c224c");
-        transaction.setName("Wakaf Al-Quran dan Pembinaan");
-        transaction.setProduct("WAP Sintang");
-
 
         try {
             // bundle format for addText
@@ -189,9 +192,9 @@ public class HelloWorldModule extends ReactContextBaseJavaModule {
             MainApplication.printer.addText(format, "Prog Peruntukan       Qty  harga");
             MainApplication.printer.addText(format, "Proj");
             MainApplication.printer.addText(format,"--------------------------------");
-            List<Value> value = transaction.getValue();
+            List<Detail> value = transaction.getDetail();
 
-            for(Value v : transaction.getValue()) {
+            for(Detail v : value) {
                 MainApplication.printer.addText(format, String.format("%s %s", v.getProgram_code().length() < 4 ? v.getProgram_code()+" ": v.getProgram_code(), v.getProgram_name().length() > 27 ? v.getProgram_name().substring (0,27) : v.getProgram_name() ));
                 String product = product(v.getProduct_name());
                 MainApplication.printer.addText(format, String.format("%s %s %s %s", v.getProduct_code(), product, v.getQuantity(), v.getTotal() ));
